@@ -12,8 +12,8 @@ using **SwiGLU**, **LayerNorm** and **RoPE**.
 
 | step | what | status |
 |---|---|---|
-| 1 | Port the winning model + NorMuon to PyTorch, prove it matches the old framework | in progress |
-| 2 | Byte-level BPE tokenizer, written from scratch | |
+| 1 | Port the winning model + NorMuon to PyTorch, prove it matches the old framework | done |
+| 2 | Byte-level BPE tokenizer, written from scratch | in progress |
 | 3 | Pretraining on diverse text (e.g. FineWeb-Edu), resumable across Kaggle sessions | |
 | 4 | Instruction tuning (SFT): chat template, loss only on assistant replies | |
 | 5 | Preference tuning (DPO) | |
@@ -43,4 +43,18 @@ Checks:
 python scripts/check_port.py ../LLM/results/runs/45_normuon_swiglu_layernorm_rope_s1 --data ../LLM/data/tinystories --nllm ../LLM
 python train.py --data ../LLM/data/tinystories --out runs/port_check
 python sample.py runs/port_check "Once upon a time"
+```
+
+## Step 2: BPE tokenizer
+
+```
+minigpt/tokenizer.py        byte-level BPE: GPT-4 regex pre-split, fast incremental training, special tokens
+scripts/train_tokenizer.py  train on a text file, show compression and example splits
+tests/test_tokenizer.py     round trips (unicode, emoji), special tokens, and proof that the fast
+                            training learns exactly the same merges as textbook BPE
+```
+
+```
+python tests/test_tokenizer.py
+python scripts/train_tokenizer.py ../LLM/data/tinystories/raw.txt --vocab-size 4096 --out tokenizer.json
 ```
