@@ -1,7 +1,7 @@
-"""Continue a story with a trained model.
+"""Continue text with a trained model.
 
   python sample.py runs/port_check "Once upon a time"
-  python sample.py runs/port_check "Lily saw a big dog" --chars 400 --temperature 0.7
+  python sample.py runs/pretrain "The water cycle is" --tokens 150 --temperature 0.7
 """
 import argparse
 import os
@@ -9,13 +9,14 @@ import os
 import torch
 
 from minigpt.model import GPT, GPTConfig
+from minigpt.tokenizer import BPETokenizer
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("run")
     ap.add_argument("prompt")
-    ap.add_argument("--chars", type=int, default=300)
+    ap.add_argument("--tokens", "--chars", type=int, default=300, help="how many tokens (characters for char models)")
     ap.add_argument("--temperature", type=float, default=0.8)
     ap.add_argument("--top-k", type=int, default=20)
     ap.add_argument("--seed", type=int, default=0)
@@ -25,12 +26,17 @@ def main():
     model = GPT(GPTConfig(**blob["config"]))
     model.load_state_dict(blob["model"])
     model.eval()
-    chars = blob["chars"]
-    stoi = {c: i for i, c in enumerate(chars)}
-    idx = torch.tensor([[stoi[c] for c in args.prompt if c in stoi]])
-    out = model.generate(idx, args.chars, args.temperature, args.top_k,
+    if "tokenizer" in blob:
+        tok = BPETokenizer.load(os.path.join(args.run, blob["tokenizer"]))
+        encode, decode = (lambda s: tok.encode(s, allow_special=False)), tok.decode
+    else:
+        chars = blob["chars"]
+        stoi = {c: i for i, c in enumerate(chars)}
+        encode, decode = (lambda s: [stoi[c] for c in s if c in stoi]), (lambda ids: "".join(chars[i] for i in ids))
+    idx = torch.tensor([encode(args.prompt)])
+    out = model.generate(idx, args.tokens, args.temperature, args.top_k,
                          generator=torch.Generator().manual_seed(args.seed))
-    print("".join(chars[i] for i in out[0].tolist()))
+    print(decode(out[0].tolist()))
 
 
 if __name__ == "__main__":
